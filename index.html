@@ -33,6 +33,10 @@
         .audio-list {
             list-style: none;
             padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
         }
 
         .audio-list li {
@@ -48,6 +52,25 @@
             background: #ddd;
         }
 
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #0056b3;
+        }
+
         audio {
             width: 100%;
             margin: 20px 0;
@@ -58,6 +81,10 @@
 <body>
     <div class="player-container">
         <h2>Audio Player</h2>
+        <div class="controls">
+            <button id="prev-btn">Previous</button>
+            <button id="next-btn">Next</button>
+        </div>
         <ul class="audio-list" id="audio-list">
             <!-- Audio files will be listed here -->
         </ul>
@@ -67,6 +94,9 @@
     </div>
 
     <script>
+        let currentIndex = 0;
+        let audioFiles = [];
+
         async function fetchAudioFiles() {
             const apiUrl = 'https://api.github.com/repos/balajibalagurusami/podcast/contents/';
             const response = await fetch(apiUrl);
@@ -74,25 +104,60 @@
             return files.filter(file => /\.(mp3|m4a|wav)$/.test(file.name));
         }
 
-        function createAudioListItem(file) {
+        function createAudioListItem(file, index) {
             const listItem = document.createElement('li');
             listItem.textContent = file.name;
             listItem.setAttribute('data-src', file.download_url);
+            listItem.setAttribute('data-index', index);
             listItem.addEventListener('click', function() {
-                const audioPlayer = document.getElementById('audio-player');
-                audioPlayer.src = this.getAttribute('data-src');
-                audioPlayer.play();
+                currentIndex = parseInt(this.getAttribute('data-index'));
+                playAudio(currentIndex);
             });
             return listItem;
         }
 
+        function playAudio(index) {
+            const audioPlayer = document.getElementById('audio-player');
+            audioPlayer.src = audioFiles[index].download_url;
+            audioPlayer.play();
+            highlightCurrent(index);
+        }
+
+        function highlightCurrent(index) {
+            const audioList = document.getElementById('audio-list').children;
+            for (let i = 0; i < audioList.length; i++) {
+                audioList[i].style.backgroundColor = i === index ? '#ddd' : '#eee';
+            }
+        }
+
+        function prevAudio() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                playAudio(currentIndex);
+            }
+        }
+
+        function nextAudio() {
+            if (currentIndex < audioFiles.length - 1) {
+                currentIndex++;
+                playAudio(currentIndex);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async function() {
             const audioList = document.getElementById('audio-list');
-            const audioFiles = await fetchAudioFiles();
-            audioFiles.forEach(file => {
-                const listItem = createAudioListItem(file);
+            audioFiles = await fetchAudioFiles();
+            audioFiles.forEach((file, index) => {
+                const listItem = createAudioListItem(file, index);
                 audioList.appendChild(listItem);
             });
+
+            document.getElementById('prev-btn').addEventListener('click', prevAudio);
+            document.getElementById('next-btn').addEventListener('click', nextAudio);
+
+            if (audioFiles.length > 0) {
+                playAudio(0);
+            }
         });
     </script>
 </body>
