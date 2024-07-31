@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Player</title>
+    <title>Tamil Audio Player</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             background-color: #f0f0f0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -23,6 +24,7 @@
             text-align: center;
             max-width: 300px;
             width: 100%;
+            margin-bottom: 20px;
         }
 
         .player-container h2 {
@@ -76,11 +78,29 @@
             margin: 20px 0;
             outline: none;
         }
+
+        .metadata-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .metadata-container img {
+            max-width: 100%;
+            max-height: 200px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+
+        .metadata-container div {
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
     </style>
 </head>
 <body>
     <div class="player-container">
-        <h2>Balaji's Podcast</h2>
+        <h2>Audio Player</h2>
         <div class="controls">
             <button id="prev-btn">Previous</button>
             <button id="next-btn">Next</button>
@@ -91,14 +111,21 @@
         <audio controls id="audio-player">
             Your browser does not support the audio element.
         </audio>
+        <div class="metadata-container" id="metadata-container">
+            <img id="album-art" src="" alt="Album Art" hidden>
+            <div id="title"></div>
+            <div id="artist"></div>
+            <div id="year"></div>
+        </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <script>
         let currentIndex = 0;
         let audioFiles = [];
 
         async function fetchAudioFiles() {
-            const apiUrl = 'https://api.github.com/repos/balajibalagurusami/podcast/contents/';
+            const apiUrl = 'https://api.github.com/repos/balajibalagurusami/podcast/contents/mp3';
             const response = await fetch(apiUrl);
             const files = await response.json();
             return files.filter(file => /\.(mp3|m4a|wav)$/.test(file.name));
@@ -121,6 +148,7 @@
             audioPlayer.src = audioFiles[index].download_url;
             audioPlayer.play();
             highlightCurrent(index);
+            displayMetadata(audioFiles[index].download_url);
         }
 
         function highlightCurrent(index) {
@@ -142,6 +170,42 @@
                 currentIndex++;
                 playAudio(currentIndex);
             }
+        }
+
+        function displayMetadata(url) {
+            jsmediatags.read(url, {
+                onSuccess: function(tag) {
+                    const { title, artist, year, picture } = tag.tags;
+                    document.getElementById('title').textContent = `Title: ${title || 'Unknown'}`;
+                    document.getElementById('artist').textContent = `Artist: ${artist || 'Unknown'}`;
+                    document.getElementById('year').textContent = `Year: ${year || 'Unknown'}`;
+                    
+                    if (picture) {
+                        const base64String = arrayBufferToBase64(picture.data);
+                        document.getElementById('album-art').src = `data:${picture.format};base64,${base64String}`;
+                        document.getElementById('album-art').hidden = false;
+                    } else {
+                        document.getElementById('album-art').hidden = true;
+                    }
+                },
+                onError: function(error) {
+                    console.log(error);
+                    document.getElementById('title').textContent = 'Title: Unknown';
+                    document.getElementById('artist').textContent = 'Artist: Unknown';
+                    document.getElementById('year').textContent = 'Year: Unknown';
+                    document.getElementById('album-art').hidden = true;
+                }
+            });
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
