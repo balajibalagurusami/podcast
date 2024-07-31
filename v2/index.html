@@ -1,0 +1,266 @@
+To display album art and MP3 tags like title, artist, and year, we need to parse the metadata from the audio files. Unfortunately, the HTML5 audio element doesn't provide a built-in way to access this metadata, so we'll use the `jsmediatags` library to read the ID3 tags from the MP3 files.
+
+Here's how you can achieve this:
+
+1. **Include jsmediatags Library**: Include the `jsmediatags` library in your HTML file.
+2. **Fetch and Display Metadata**: Use `jsmediatags` to read and display the metadata of the currently playing audio file.
+
+Here's the updated `index.html`:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamil Audio Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .player-container {
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            text-align: center;
+            max-width: 300px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .player-container h2 {
+            margin: 0 0 10px;
+            font-size: 24px;
+        }
+
+        .audio-list {
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+
+        .audio-list li {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #eee;
+        }
+
+        .audio-list li:hover {
+            background: #ddd;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #0056b3;
+        }
+
+        audio {
+            width: 100%;
+            margin: 20px 0;
+            outline: none;
+        }
+
+        .metadata-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .metadata-container img {
+            max-width: 100%;
+            max-height: 200px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+
+        .metadata-container div {
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .combinations-container {
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            text-align: center;
+            max-width: 300px;
+            width: 100%;
+        }
+
+        .combinations-container h2 {
+            margin: 0 0 10px;
+            font-size: 24px;
+        }
+
+        .combinations-list {
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        .combinations-list li {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-container">
+        <h2>Audio Player</h2>
+        <div class="controls">
+            <button id="prev-btn">Previous</button>
+            <button id="next-btn">Next</button>
+        </div>
+        <ul class="audio-list" id="audio-list">
+            <!-- Audio files will be listed here -->
+        </ul>
+        <audio controls id="audio-player">
+            Your browser does not support the audio element.
+        </audio>
+        <div class="metadata-container" id="metadata-container">
+            <img id="album-art" src="" alt="Album Art" hidden>
+            <div id="title"></div>
+            <div id="artist"></div>
+            <div id="year"></div>
+        </div>
+    </div>
+
+    <div class="combinations-container">
+        <h2>Tamil Combinations</h2>
+        <ul class="combinations-list" id="combinations-list">
+            <!-- Combinations will be listed here -->
+        </ul>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <script>
+        let currentIndex = 0;
+        let audioFiles = [];
+
+        async function fetchAudioFiles() {
+            const apiUrl = 'https://api.github.com/repos/balajibalagurusami/podcast/contents/';
+            const response = await fetch(apiUrl);
+            const files = await response.json();
+            return files.filter(file => /\.(mp3|m4a|wav)$/.test(file.name));
+        }
+
+        function createAudioListItem(file, index) {
+            const listItem = document.createElement('li');
+            listItem.textContent = file.name;
+            listItem.setAttribute('data-src', file.download_url);
+            listItem.setAttribute('data-index', index);
+            listItem.addEventListener('click', function() {
+                currentIndex = parseInt(this.getAttribute('data-index'));
+                playAudio(currentIndex);
+            });
+            return listItem;
+        }
+
+        function playAudio(index) {
+            const audioPlayer = document.getElementById('audio-player');
+            audioPlayer.src = audioFiles[index].download_url;
+            audioPlayer.play();
+            highlightCurrent(index);
+            displayMetadata(audioFiles[index].download_url);
+        }
+
+        function highlightCurrent(index) {
+            const audioList = document.getElementById('audio-list').children;
+            for (let i = 0; i < audioList.length; i++) {
+                audioList[i].style.backgroundColor = i === index ? '#ddd' : '#eee';
+            }
+        }
+
+        function prevAudio() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                playAudio(currentIndex);
+            }
+        }
+
+        function nextAudio() {
+            if (currentIndex < audioFiles.length - 1) {
+                currentIndex++;
+                playAudio(currentIndex);
+            }
+        }
+
+        function displayMetadata(url) {
+            jsmediatags.read(url, {
+                onSuccess: function(tag) {
+                    const { title, artist, year, picture } = tag.tags;
+                    document.getElementById('title').textContent = `Title: ${title || 'Unknown'}`;
+                    document.getElementById('artist').textContent = `Artist: ${artist || 'Unknown'}`;
+                    document.getElementById('year').textContent = `Year: ${year || 'Unknown'}`;
+                    
+                    if (picture) {
+                        const base64String = arrayBufferToBase64(picture.data);
+                        document.getElementById('album-art').src = `data:${picture.format};base64,${base64String}`;
+                        document.getElementById('album-art').hidden = false;
+                    } else {
+                        document.getElementById('album-art').hidden = true;
+                    }
+                },
+                onError: function(error) {
+                    console.log(error);
+                    document.getElementById('title').textContent = 'Title: Unknown';
+                    document.getElementById('artist').textContent = 'Artist: Unknown';
+                    document.getElementById('year').textContent = 'Year: Unknown';
+                    document.getElementById('album-art').hidden = true;
+                }
+            });
+        }
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+
+        function generateCombinations() {
+            const consonants = ["க்", "ங்", "ச்", "ஞ்", "ட்", "ண்", "த்", "ந்", "ப்", "ம்", "ய்", "ர்", "ல்", "வ்", "ழ்", "ள்", "ற்", "ன்"];
+            const vowels = ["அ", "ஆ", "இ", "ஈ", "உ", "ஊ", "எ", "ஏ", "ஐ", "ஒ", "ஓ", "ஔ"];
+            const northernCharacters = ["ஜ", "ஜா", "ஜி", "ஜீ", "ஜு", "ஜூ", "ஜெ", "ஜே", "ஜை", "ஜொ", "ஜோ", "ஜௌ"];
+
+            let combinations = [];
+
+            consonants.forEach(consonant => {
+                vowels.forEach
